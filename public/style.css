@@ -37,11 +37,11 @@ main {
     animation: idle 1s infinite ease-in-out;
 }
 
-/* Skins individuais */
-.guardiao  { background-image: url("./assets/guardiao.png"); }
-.arqueiro  { background-image: url("./assets/sprite2.png"); }
-.mago      { background-image: url("./assets/sprite3.png"); }
-.assassino { background-image: url("./assets/sprite4.png"); }
+/* Verifique se esses nomes de arquivos estão exatamente assim na pasta assets */
+.guardiao  { background-image: url("/public/assets/guardiao.png"); }
+.arqueiro  { background-image: url("/public/assets/sprite2.png"); }
+.mago      { background-image: url("/public/assets/sprite3.png"); }
+.assassino { background-image: url("/public/assets/sprite4.png"); }
 
 /* Nome sobre o personagem */
 .char-label {
