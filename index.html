@@ -1,71 +1,78 @@
 <link rel="stylesheet" href="./public/style.css">
 <main id="canvas"></main>
-<script>
-    // Preparação
-    const $canvas = document.getElementById('canvas');
-    let users = {};
-    let user = undefined;
 
-    // Renderizando Usuários
-    function renderUsers() {
-        $canvas.innerHTML = `
-      ${Object.keys(users).map((userId) => {
-      const user = users[userId]
-      console.log(user);
-      return `
-          <div class="player" style="top: ${user.y || 0}px; left: ${user.x || 0}px;">${user.id}</div>
-        `;
-    }).join('')}
-    `;
-  }
-  // Load do Jogo [MANUAL]
-  // users = [
-  // { id: "diegodev" },
-  // ]
-  // renderUsers();
-</script>
-<!-- Carregando o Socket.IO-->
 <script src="/socket.io/socket.io.js"></script>
 <script>
-    var socket = io();
-    socket.on('connect', function() {
-        user = {
-            id: socket.id
-        };
-        users[socket.id] = user;
+    const $canvas = document.getElementById('canvas');
+    let users = {};
+    const STEP = 10;
+    const MAP_SIZE = 420;
+
+    // Gerencia a criação e atualização de elementos sem destruir o HTML todo
+    function renderUsers() {
+        Object.keys(users).forEach((id) => {
+            const userData = users[id];
+            let $el = document.getElementById(`player-${id}`);
+
+            // Se o elemento do jogador não existe, cria ele
+            if (!$el) {
+                $el = document.createElement('div');
+                $el.id = `player-${id}`;
+                // Atribui uma skin baseada no ID ou fixa
+                const skinIndex = Math.abs(id.charCodeAt(0) % 4); 
+                $el.className = `player skin-${skinIndex}`;
+                $canvas.appendChild($el);
+            }
+
+            // Atualiza apenas a posição (muito mais rápido)
+            $el.style.top = `${userData.y || 0}px`;
+            $el.style.left = `${userData.x || 0}px`;
+            $el.style.zIndex = Math.floor(userData.y || 0); // Profundidade
+        });
+
+        // Remove jogadores que desconectaram
+        const allPlayerEls = document.querySelectorAll('.player');
+        allPlayerEls.forEach(el => {
+            const id = el.id.replace('player-', '');
+            if (!users[id]) el.remove();
+        });
+    }
+
+    const socket = io();
+
+    socket.on('connect', () => {
+        console.log("Conectado com ID:", socket.id);
+    });
+
+    // Escuta atualizações do servidor
+    socket.on("ON_USERS_UPDATE", (updatedUsers) => {
+        users = typeof updatedUsers === 'string' ? JSON.parse(updatedUsers) : updatedUsers;
         renderUsers();
     });
 
+    // Captura de movimento
     window.addEventListener('keydown', (e) => {
-            const moves = {
-                ArrowUp: {
-                    x: 0,
-                    y: 0,
-                    y: -10
-                },
-                ArrowDown: {
-                    x: 0,
-                    y: 10
-                },
-                ArrowLeft: {
-                    x: -10,
-                    y: 0
-                },
-                ArrowRight: {
-                    x: 10,
-                    y: 0
-                },
-            };
+        const moves = {
+            ArrowUp:    { x: 0, y: -STEP },
+            ArrowDown:  { x: 0, y: STEP },
+            ArrowLeft:  { x: -STEP, y: 0 },
+            ArrowRight: { x: STEP, y: 0 },
+        };
 
-            const move = moves[e.key];
-            if (move) socket.emit("ON_USER_MOVE", {
-                id: socket.id,
-                move
-            });
-        })
-        // Rerender
-    socket.on("ON_USERS_UPDATE", (updatedUsers) => {
-        users = JSON.parse(updatedUsers);
-        renderUsers();
-    })
+        const move = moves[e.key];
+        if (move) {
+            // Pegamos a posição atual do nosso player localmente para validar limites
+            const me = users[socket.id] || { x: 0, y: 0 };
+            const nextX = me.x + move.x;
+            const nextY = me.y + move.y;
+
+            // Só envia se estiver dentro do mapa (0 a 390px)
+            if (nextX >= 0 && nextX <= (MAP_SIZE - 30) && nextY >= 0 && nextY <= (MAP_SIZE - 30)) {
+                socket.emit("ON_USER_MOVE", {
+                    id: socket.id,
+                    move
+                });
+            }
+        }
+    });
 </script>
